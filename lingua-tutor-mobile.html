@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lingua — Voice Language Tutor</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --paper: #faf8f4;
+    --paper-warm: #f5f0e8;
+    --cream: #ede8dc;
+    --accent: #c8853a;
+    --accent-pale: #f5e8d4;
+    --teal: #2a7f7f;
+    --teal-pale: #d4efef;
+    --rose: #c84a4a;
+    --rose-pale: #f5d4d4;
+    --sage: #4a7a5a;
+    --sage-pale: #d4ead8;
+    --border: rgba(26,26,46,0.12);
+    --shadow: 0 4px 20px rgba(26,26,46,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --header-h: 52px;
+    --input-h: 70px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: var(--ink);
+    border-bottom: 2px solid var(--accent);
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 10px;
+    z-index: 100;
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: white; flex-shrink: 0; }
+  .logo-dot { color: var(--accent); }
+
+  .lang-select-wrap { position: relative; flex: 1; }
+  .lang-select {
+    appearance: none; width: 100%;
+    background: rgba(255,255,255,0.1); color: white;
+    border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-sm);
+    padding: 6px 28px 6px 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .lang-select option { background: #1a1a2e; color: white; }
+  .lang-select-wrap::after {
+    content: '▾'; position: absolute; right: 9px; top: 50%;
+    transform: translateY(-50%); color: var(--accent); pointer-events: none; font-size: 11px;
+  }
+
+  .mode-toggle { display: flex; background: rgba(255,255,255,0.08); border-radius: 20px; padding: 3px; gap: 2px; flex-shrink: 0; }
+  .mode-btn {
+    padding: 4px 10px; border: none; border-radius: 16px;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    cursor: pointer; color: rgba(255,255,255,0.5); background: transparent; transition: all 0.2s;
+  }
+  .mode-btn.active { background: var(--accent); color: white; }
+
+  /* ── MESSAGES ── */
+  .messages {
+    position: fixed;
+    top: var(--header-h);
+    left: 0; right: 0;
+    bottom: var(--input-h);
+    overflow-y: auto;
+    padding: 16px 14px;
+    display: flex; flex-direction: column; gap: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .messages::-webkit-scrollbar { display: none; }
+
+  .msg { display: flex; gap: 9px; animation: msgIn 0.25s ease; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; max-width: 88%; }
+  .msg.tutor { max-width: 92%; }
+  @keyframes msgIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .msg-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; font-weight: 700;
+  }
+  .msg.tutor .msg-avatar { background: var(--ink); color: white; font-family: 'Playfair Display', serif; }
+  .msg.user .msg-avatar { background: var(--accent); color: white; font-size: 14px; }
+
+  .msg-bubble { padding: 11px 14px; border-radius: var(--radius); line-height: 1.55; font-size: 14.5px; }
+  .msg.tutor .msg-bubble { background: white; border: 1px solid var(--border); border-top-left-radius: 4px; box-shadow: var(--shadow); }
+  .msg.user .msg-bubble { background: var(--ink); color: white; border-top-right-radius: 4px; }
+  .msg-bubble em { color: var(--accent); font-style: italic; font-weight: 500; }
+  .msg-meta { font-size: 11px; margin-top: 4px; opacity: 0.4; }
+  .msg.user .msg-meta { text-align: right; }
+
+  .speak-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 8px; padding: 5px 11px;
+    border: 1px solid var(--border); border-radius: 20px;
+    background: var(--paper); color: var(--ink);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+  }
+  .speak-btn.speaking { background: var(--accent-pale); border-color: var(--accent); color: var(--accent); }
+
+  /* TYPING */
+  .typing-wrap { display: flex; gap: 9px; }
+  .typing-indicator {
+    display: flex; gap: 5px; padding: 13px 16px;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); border-top-left-radius: 4px;
+    box-shadow: var(--shadow); align-items: center;
+  }
+  .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: bounce 1.2s ease-in-out infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100% { transform:translateY(0); opacity:0.35; } 30% { transform:translateY(-7px); opacity:1; } }
+
+  /* ── INPUT BAR ── */
+  .input-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--input-h);
+    background: var(--paper);
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 6px 12px 8px;
+    gap: 4px;
+    z-index: 100;
+  }
+  .voice-status {
+    font-size: 11px; color: var(--rose); font-weight: 500;
+    text-align: center; min-height: 14px; line-height: 1;
+  }
+  .input-row { display: flex; gap: 8px; align-items: center; flex: 1; }
+
+  .chat-input {
+    flex: 1; padding: 10px 14px;
+    border: 1.5px solid var(--border); border-radius: 22px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px;
+    background: white; color: var(--ink); resize: none; line-height: 1.4;
+    transition: border-color 0.2s;
+    height: 42px; max-height: 42px; overflow: hidden;
+  }
+  .chat-input:focus { outline: none; border-color: var(--accent); }
+
+  .mic-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--paper-warm); border: 1.5px solid var(--border);
+    color: var(--ink); cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.2s;
+  }
+  .mic-btn.listening {
+    background: var(--rose-pale); border-color: var(--rose); color: var(--rose);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,74,74,0.3); } 50% { box-shadow: 0 0 0 8px rgba(200,74,74,0); } }
+
+  .send-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--ink); color: white; border: none;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.2s;
+  }
+  .send-btn:hover, .send-btn:active { background: var(--accent); }
+  .send-btn:disabled { opacity: 0.4; }
+
+  /* ── SETTINGS DRAWER ── */
+  .settings-btn {
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.6); font-size: 18px; padding: 4px; flex-shrink: 0;
+  }
+  .drawer-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 200;
+  }
+  .drawer-overlay.open { display: block; }
+  .drawer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--paper-warm);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 18px 32px;
+    z-index: 201;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .drawer.open { transform: translateY(0); }
+  .drawer-handle { width: 36px; height: 4px; background: var(--cream); border-radius: 4px; margin: 0 auto 18px; }
+  .drawer-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+  .section-header {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.7px; opacity: 0.4; margin: 16px 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* API KEY */
+  .api-notice { background: var(--accent-pale); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 12px; font-size: 13px; line-height: 1.55; color: #5a3010; }
+  .api-key-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--accent); border-radius: var(--radius-sm); font-family: 'DM Mono', monospace; font-size: 12px; margin-top: 8px; background: white; color: var(--ink); }
+  .api-key-input:focus { outline: none; }
+  .api-save-btn { margin-top: 8px; padding: 8px 18px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; border-radius: 8px; }
+
+  /* FEEDBACK */
+  .feedback-item { padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 13px; line-height: 1.5; border-left: 3px solid; }
+  .feedback-item.positive { background: var(--sage-pale); border-color: var(--sage); color: #2a5a38; }
+  .feedback-item.correction { background: var(--rose-pale); border-color: var(--rose); color: #7a2a2a; }
+  .feedback-item.tip { background: var(--teal-pale); border-color: var(--teal); color: #1a5a5a; }
+  .feedback-item.neutral { background: var(--accent-pale); border-color: var(--accent); color: #7a4a1a; }
+  .feedback-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; opacity: 0.65; }
+  .no-feedback { color: var(--ink); opacity: 0.4; font-size: 13px; padding: 8px 0; }
+
+  /* GOALS */
+  .goal-item { background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.5; margin-bottom: 8px; }
+  .goal-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; transition: all 0.2s; }
+  .goal-check.done { background: var(--sage); border-color: var(--sage); color: white; }
+  .goal-text.done-text { text-decoration: line-through; opacity: 0.4; }
+  .add-goal-btn { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--ink); opacity: 0.5; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+  .add-goal-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--accent); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; margin-top: 8px; background: white; color: var(--ink); display: none; }
+  .add-goal-input:focus { outline: none; }
+
+  /* PROGRESS */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .stat-num { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.5; margin-top: 3px; font-weight: 600; }
+  .progress-section { margin-bottom: 12px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 5px; opacity: 0.65; }
+  .progress-bar-wrap { height: 8px; background: var(--cream); border-radius: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 8px; transition: width 0.6s ease; }
+
+  /* AUTOSPEAK */
+  .autospeak-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
+  .autospeak-row input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
+  /* LEVEL */
+  .level-badge { background: var(--accent-pale); color: var(--accent); border: 1px solid var(--accent); border-radius: 20px; padding: 4px 11px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">Lingua<span class="logo-dot">.</span></div>
+  <div class="lang-select-wrap">
+    <select class="lang-select" id="langSelect">
+      <option value="Greek">🇬🇷 Greek</option>
+      <option value="Spanish">🇪🇸 Spanish</option>
+      <option value="French">🇫🇷 French</option>
+      <option value="Italian">🇮🇹 Italian</option>
+      <option value="Portuguese">🇧🇷 Portuguese</option>
+      <option value="German">🇩🇪 German</option>
+      <option value="Japanese">🇯🇵 Japanese</option>
+      <option value="Mandarin">🇨🇳 Mandarin</option>
+      <option value="Arabic">🇸🇦 Arabic</option>
+      <option value="Korean">🇰🇷 Korean</option>
+      <option value="Russian">🇷🇺 Russian</option>
+      <option value="Dutch">🇳🇱 Dutch</option>
+    </select>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="modeChat" onclick="setMode('chat')">Chat</button>
+    <button class="mode-btn" id="modeLesson" onclick="setMode('lesson')">Lesson</button>
+  </div>
+  <button class="settings-btn" onclick="openDrawer()" title="Settings & feedback">⚙️</button>
+</header>
+
+<!-- MESSAGES -->
+<div class="messages" id="messages">
+  <div class="msg tutor">
+    <div class="msg-avatar">L</div>
+    <div>
+      <div class="msg-bubble">
+        Γεια σου! I'm Lingua, your Greek tutor. 🏛️<br><br>
+        Tap <strong>🎤</strong> to speak, or type below. I'll speak back to you!<br><br>
+        First, tap <strong>⚙️</strong> in the top right to add your API key.
+      </div>
+      <div class="msg-meta">Lingua · now</div>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT BAR -->
+<div class="input-bar">
+  <div class="voice-status" id="voiceStatus"></div>
+  <div class="input-row">
+    <textarea class="chat-input" id="chatInput" placeholder="Type or tap 🎤 to speak…" rows="1"></textarea>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
+  </div>
+</div>
+
+<!-- SETTINGS DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-title">Settings & Progress</div>
+
+  <!-- API KEY -->
+  <div id="apiNotice" class="api-notice">
+    <strong>Add your Anthropic API key</strong> to enable the AI tutor.<br>
+    <input class="api-key-input" id="apiKeyInput" type="password" placeholder="sk-ant-…">
+    <button class="api-save-btn" onclick="saveApiKey()">Save Key</button>
+  </div>
+
+  <!-- AUTO SPEAK -->
+  <div class="section-header">Voice</div>
+  <div class="autospeak-row">
+    <input type="checkbox" id="autoSpeak" checked>
+    <label for="autoSpeak">Auto-speak tutor replies</label>
+  </div>
+
+  <!-- LEVEL -->
+  <div class="section-header">Level</div>
+  <div class="level-badge" id="levelBadge">Beginner</div>
+
+  <!-- FEEDBACK -->
+  <div class="section-header">Live Feedback</div>
+  <div id="feedbackList"><div class="no-feedback">Start a conversation to see feedback here.</div></div>
+
+  <!-- GOALS -->
+  <div class="section-header">Learning Goals</div>
+  <div id="goalsList"></div>
+  <button class="add-goal-btn" id="addGoalBtn" onclick="showAddGoal()">+ Add a goal</button>
+  <input class="add-goal-input" id="goalInput" placeholder="Type your goal and press Enter…" onkeydown="handleGoalInput(event)">
+
+  <!-- PROGRESS -->
+  <div class="section-header">Session Progress</div>
+  <div class="stat-grid" style="margin-bottom:14px">
+    <div class="stat-card"><div class="stat-num" id="statWords">0</div><div class="stat-lbl">Words</div></div>
+    <div class="stat-card"><div class="stat-num" id="statMsgs">0</div><div class="stat-lbl">Messages</div></div>
+    <div class="stat-card"><div class="stat-num" id="statCorrections">0</div><div class="stat-lbl">Fixes</div></div>
+    <div class="stat-card"><div class="stat-num" id="statTime">0m</div><div class="stat-lbl">Time</div></div>
+  </div>
+  <div class="progress-section">
+    <div class="progress-label"><span>Vocabulary</span><span id="pctVocab">5%</span></div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="barVocab" style="width:5%;background:var(--teal)"></div></div>
+  </div>
+  <div class="progress-section">
+    <div class="progress-label"><span>Grammar</span><span id="pctGrammar">5%</span></div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="barGrammar" style="width:5%;background:var(--sage)"></div></div>
+  </div>
+  <div class="progress-section">
+    <div class="progress-label"><span>Fluency</span><span id="pctFluency">5%</span></div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="barFluency" style="width:5%;background:var(--accent)"></div></div>
+  </div>
+</div>
+
+<script>
+const LANG_CONFIG = {
+  Greek:      { voice: 'el-GR', welcome: `Γεια σου! I'm Lingua, your Greek tutor. 🏛️<br><br>Tap 🎤 to speak or type below. Try saying <em>Γεια</em> (Ya — hello)!` },
+  Spanish:    { voice: 'es-ES', welcome: `¡Hola! I'm Lingua, your Spanish tutor. 🌞<br><br>Tap 🎤 or type. Try <em>Hola</em>!` },
+  French:     { voice: 'fr-FR', welcome: `Bonjour! I'm Lingua, your French tutor. 🥐<br><br>Tap 🎤 or type. Try <em>Bonjour</em>!` },
+  Italian:    { voice: 'it-IT', welcome: `Ciao! I'm Lingua, your Italian tutor. 🍕<br><br>Tap 🎤 or type. Try <em>Ciao</em>!` },
+  Portuguese: { voice: 'pt-BR', welcome: `Olá! I'm Lingua, your Portuguese tutor. 🎵<br><br>Tap 🎤 or type. Try <em>Olá</em>!` },
+  German:     { voice: 'de-DE', welcome: `Hallo! I'm Lingua, your German tutor. 🏔️<br><br>Tap 🎤 or type. Try <em>Hallo</em>!` },
+  Japanese:   { voice: 'ja-JP', welcome: `こんにちは！I'm Lingua, your Japanese tutor. 🌸<br><br>Tap 🎤 or type. Try <em>こんにちは</em>!` },
+  Mandarin:   { voice: 'zh-CN', welcome: `你好！I'm Lingua, your Mandarin tutor. 🐉<br><br>Tap 🎤 or type. Try <em>你好</em>!` },
+  Arabic:     { voice: 'ar-SA', welcome: `مرحبا! I'm Lingua, your Arabic tutor. 🌙<br><br>Tap 🎤 or type. Try <em>مرحبا</em>!` },
+  Korean:     { voice: 'ko-KR', welcome: `안녕하세요! I'm Lingua, your Korean tutor. 🎯<br><br>Tap 🎤 or type. Try <em>안녕</em>!` },
+  Russian:    { voice: 'ru-RU', welcome: `Привет! I'm Lingua, your Russian tutor. 🏔️<br><br>Tap 🎤 or type. Try <em>Привет</em>!` },
+  Dutch:      { voice: 'nl-NL', welcome: `Hallo! I'm Lingua, your Dutch tutor. 🌷<br><br>Tap 🎤 or type. Try <em>Hallo</em>!` },
+};
+
+const state = {
+  lang: 'Greek', mode: 'chat', level: 'Beginner', apiKey: '',
+  messages: [],
+  goals: [
+    { text: 'Learn basic greetings & farewells', done: false },
+    { text: 'Master present tense verbs', done: false },
+    { text: 'Build 50-word everyday vocabulary', done: false },
+  ],
+  stats: { words: 0, msgs: 0, corrections: 0, start: Date.now() },
+  isTyping: false,
+};
+
+// ── DRAWER ────────────────────────────────────────────────────────────────
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+  updateProgressUI();
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+
+// ── API KEY ────────────────────────────────────────────────────────────────
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (!k) return;
+  state.apiKey = k;
+  document.getElementById('apiNotice').innerHTML = `<span style="color:var(--sage);font-weight:600;font-size:13px">✓ API key saved — you're all set!</span>`;
+}
+
+// ── SPEECH RECOGNITION ────────────────────────────────────────────────────
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null, isListening = false;
+
+function initRecognition() {
+  if (!SR) return;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = LANG_CONFIG[state.lang]?.voice || 'en-US';
+
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('micBtn').classList.add('listening');
+    setVoiceStatus('🔴 Listening…');
+  };
+  recognition.onresult = (e) => {
+    let final = '', interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    document.getElementById('chatInput').value = final || interim;
+  };
+  recognition.onend = () => {
+    isListening = false;
+    document.getElementById('micBtn').classList.remove('listening');
+    setVoiceStatus('');
+    const val = document.getElementById('chatInput').value.trim();
+    if (val) sendMessage();
+  };
+  recognition.onerror = (e) => {
+    isListening = false;
+    document.getElementById('micBtn').classList.remove('listening');
+    if (e.error === 'not-allowed') setVoiceStatus('⚠️ Mic access denied');
+    else if (e.error === 'no-speech') setVoiceStatus('No speech detected');
+    else setVoiceStatus('');
+    setTimeout(() => setVoiceStatus(''), 3000);
+  };
+}
+
+function toggleMic() {
+  if (!SR) { setVoiceStatus('⚠️ Use Chrome for voice'); setTimeout(() => setVoiceStatus(''), 3000); return; }
+  if (!recognition) initRecognition();
+  if (isListening) { recognition.stop(); return; }
+  recognition.lang = LANG_CONFIG[state.lang]?.voice || 'en-US';
+  document.getElementById('chatInput').value = '';
+  try { recognition.start(); } catch(e) { recognition = null; initRecognition(); recognition.start(); }
+}
+
+function setVoiceStatus(msg) { document.getElementById('voiceStatus').textContent = msg; }
+
+// ── TTS ───────────────────────────────────────────────────────────────────
+function speak(html, btn) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  if (btn?.classList.contains('speaking')) {
+    btn.classList.remove('speaking'); btn.textContent = '🔊 Listen'; return;
+  }
+  const clean = html.replace(/<[^>]+>/g, '').replace(/\(.*?\)/g, '').trim();
+  const utter = new SpeechSynthesisUtterance(clean);
+  const langCode = LANG_CONFIG[state.lang]?.voice || 'en-US';
+  const voices = window.speechSynthesis.getVoices();
+  const match = voices.find(v => v.lang === langCode) || voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
+  if (match) utter.voice = match;
+  utter.lang = langCode; utter.rate = 0.88; utter.pitch = 1.05;
+  if (btn) { btn.classList.add('speaking'); btn.textContent = '⏹ Stop'; }
+  utter.onend = utter.onerror = () => { if (btn) { btn.classList.remove('speaking'); btn.textContent = '🔊 Listen'; } };
+  window.speechSynthesis.speak(utter);
+}
+if (window.speechSynthesis) { window.speechSynthesis.getVoices(); window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices(); }
+
+// ── SEND ──────────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || state.isTyping) return;
+  input.value = '';
+  appendMessage('user', text);
+  state.stats.msgs++; state.stats.words += text.split(/\s+/).length;
+
+  if (!state.apiKey) {
+    appendMessage('tutor', `Tap <strong>⚙️</strong> in the top right to add your API key first! 🔑`);
+    return;
+  }
+
+  state.isTyping = true;
+  document.getElementById('sendBtn').disabled = true;
+  const typingEl = showTyping();
+
+  try {
+    const history = state.messages.slice(-14).map(m => ({ role: m.role === 'tutor' ? 'assistant' : 'user', content: m.raw }));
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': state.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: buildSystemPrompt(), messages: history }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.content?.map(b => b.text || '').join('') || '{}';
+    typingEl.remove();
+
+    let parsed;
+    try { parsed = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
+    catch { parsed = { reply: raw, feedback: [], levelHint: null, goalsUpdate: [] }; }
+
+    appendMessage('tutor', parsed.reply || raw, true);
+    handleFeedback(parsed.feedback || []);
+    if (parsed.levelHint && parsed.levelHint !== 'null') {
+      state.level = parsed.levelHint;
+      document.getElementById('levelBadge').textContent = parsed.levelHint;
+    }
+    if (parsed.goalsUpdate?.length) {
+      parsed.goalsUpdate.forEach(g => { if (!state.goals.find(x => x.text.toLowerCase() === g.toLowerCase())) state.goals.push({ text: g, done: false }); });
+      updateGoalsUI();
+    }
+    if (document.getElementById('autoSpeak').checked) speak(parsed.reply || raw);
+
+  } catch (err) {
+    typingEl.remove();
+    appendMessage('tutor', `Error: ${err.message}`);
+  }
+  state.isTyping = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+function buildSystemPrompt() {
+  const modeInstr = state.mode === 'lesson'
+    ? `STRUCTURED LESSON mode: Give short exercises or grammar drills. End with a small task.`
+    : `CASUAL CHAT mode: Natural conversation, weave in ${state.lang} words naturally.`;
+  return `You are Lingua, a warm ${state.lang} language tutor. Level: ${state.level}. ${modeInstr}
+Goals: ${state.goals.map(g => g.text).join(', ')}.
+User may be speaking via voice-to-text — be forgiving of transcription errors.
+RESPOND ONLY with valid JSON (no markdown):
+{"reply":"2-4 sentence response, use <em>word</em> for target language, translate in parentheses","feedback":[{"type":"positive|correction|tip|neutral","text":"specific feedback"}],"levelHint":"level or null","goalsUpdate":[]}`;
+}
+
+// ── MESSAGES ──────────────────────────────────────────────────────────────
+function appendMessage(role, html, addSpeakBtn = false) {
+  const msgs = document.getElementById('messages');
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const speakBtnHtml = (addSpeakBtn && role === 'tutor') ? `<br><button class="speak-btn" onclick="speak(this.closest('.msg').querySelector('.msg-bubble').innerHTML,this)">🔊 Listen</button>` : '';
+  div.innerHTML = `<div class="msg-avatar">${role === 'tutor' ? 'L' : '★'}</div><div><div class="msg-bubble">${html}${speakBtnHtml}</div><div class="msg-meta">${role === 'tutor' ? 'Lingua' : 'You'} · ${time}</div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  state.messages.push({ role, raw: html.replace(/<[^>]+>/g, '') });
+}
+
+function showTyping() {
+  const msgs = document.getElementById('messages');
+  const w = document.createElement('div');
+  w.className = 'msg tutor typing-wrap';
+  w.innerHTML = `<div class="msg-avatar">L</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  msgs.appendChild(w); msgs.scrollTop = msgs.scrollHeight; return w;
+}
+
+// ── FEEDBACK ──────────────────────────────────────────────────────────────
+function handleFeedback(items) {
+  if (!items.length) return;
+  const list = document.getElementById('feedbackList');
+  if (list.querySelector('.no-feedback')) list.innerHTML = '';
+  const labels = { positive: '✓ Great!', correction: '✎ Fix', tip: '💡 Tip', neutral: 'ℹ Note' };
+  items.forEach(item => {
+    state.stats.corrections += item.type === 'correction' ? 1 : 0;
+    const el = document.createElement('div');
+    el.className = `feedback-item ${item.type || 'neutral'}`;
+    el.innerHTML = `<div class="feedback-label">${labels[item.type] || 'Note'}</div>${item.text}`;
+    list.prepend(el);
+  });
+  while (list.children.length > 12) list.removeChild(list.lastChild);
+}
+
+// ── GOALS ─────────────────────────────────────────────────────────────────
+function updateGoalsUI() {
+  const list = document.getElementById('goalsList');
+  list.innerHTML = '';
+  state.goals.forEach((g, i) => {
+    const el = document.createElement('div'); el.className = 'goal-item';
+    el.innerHTML = `<div class="goal-check ${g.done?'done':''}" onclick="toggleGoal(${i})">${g.done?'✓':''}</div><div class="goal-text ${g.done?'done-text':''}">${g.text}</div>`;
+    list.appendChild(el);
+  });
+}
+function toggleGoal(i) { state.goals[i].done = !state.goals[i].done; updateGoalsUI(); }
+function showAddGoal() { document.getElementById('goalInput').style.display='block'; document.getElementById('goalInput').focus(); document.getElementById('addGoalBtn').style.display='none'; }
+function handleGoalInput(e) {
+  if (e.key === 'Enter') { const v=e.target.value.trim(); if(v){state.goals.push({text:v,done:false});updateGoalsUI();} e.target.value=''; e.target.style.display='none'; document.getElementById('addGoalBtn').style.display='block'; }
+  if (e.key === 'Escape') { e.target.style.display='none'; document.getElementById('addGoalBtn').style.display='block'; }
+}
+
+// ── PROGRESS ──────────────────────────────────────────────────────────────
+function updateProgressUI() {
+  const elapsed = Math.floor((Date.now()-state.stats.start)/60000);
+  document.getElementById('statWords').textContent = state.stats.words;
+  document.getElementById('statMsgs').textContent = state.stats.msgs;
+  document.getElementById('statCorrections').textContent = state.stats.corrections;
+  document.getElementById('statTime').textContent = elapsed+'m';
+  const setBar = (n,v) => { const c=Math.round(Math.max(0,Math.min(100,v))); document.getElementById('bar'+n).style.width=c+'%'; document.getElementById('pct'+n).textContent=c+'%'; };
+  setBar('Vocab', Math.min(95, 5+state.stats.words*0.7));
+  setBar('Grammar', Math.min(95, 5+Math.max(0,state.stats.msgs*2.5-state.stats.corrections*2)));
+  setBar('Fluency', Math.min(95, 5+elapsed*4+state.stats.msgs*1.5));
+}
+
+// ── LANG CHANGE ───────────────────────────────────────────────────────────
+document.getElementById('langSelect').addEventListener('change', function() {
+  state.lang = this.value; state.messages = []; state.level = 'Beginner';
+  state.stats = { words:0, msgs:0, corrections:0, start:Date.now() };
+  document.getElementById('levelBadge').textContent = 'Beginner';
+  document.getElementById('messages').innerHTML = '';
+  appendMessage('tutor', LANG_CONFIG[this.value]?.welcome || `Let's learn ${this.value}!`);
+  document.getElementById('feedbackList').innerHTML = `<div class="no-feedback">Start practicing ${this.value}!</div>`;
+  if (recognition) { try{recognition.stop();}catch(e){} recognition=null; }
+});
+
+function setMode(m) {
+  state.mode = m;
+  document.getElementById('modeChat').classList.toggle('active', m==='chat');
+  document.getElementById('modeLesson').classList.toggle('active', m==='lesson');
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────
+document.getElementById('chatInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+updateGoalsUI();
+updateProgressUI();
+setInterval(updateProgressUI, 30000);
+</script>
+</body>
+</html>
